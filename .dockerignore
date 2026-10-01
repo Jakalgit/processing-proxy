@@ -1,0 +1,14 @@
+node_modules
+dist
+coverage
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+test
+**/*.spec.ts
+Dockerfile
+docker-compose.yml
+nginx
+README.md

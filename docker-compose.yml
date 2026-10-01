@@ -1,0 +1,50 @@
+services:
+  nest:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PORT: 3000
+      TARGET_HOST: ${TARGET_HOST}
+    expose:
+      - "3000"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"require('net').connect({port:3000,host:'127.0.0.1'}).on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))\"",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - proxy
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      nest:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SSL_DOMAIN: ${SSL_DOMAIN}
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf.template:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    command:
+      - /bin/sh
+      - -c
+      - envsubst '$${SSL_DOMAIN}' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && exec nginx -g 'daemon off;'
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    driver: bridge
