@@ -68,3 +68,19 @@ export function isRewritableContentType(
     type === 'application/x-www-form-urlencoded'
   );
 }
+
+export function isHtmlContentType(contentType: string | undefined): boolean {
+  if (!contentType) {
+    return false;
+  }
+
+  const type = contentType.split(';')[0].trim().toLowerCase();
+  return type === 'text/html' || type === 'application/xhtml+xml';
+}
+
+export function isHtmlErrorResponse(
+  statusCode: number,
+  contentType: string | undefined,
+): boolean {
+  return statusCode >= 400 && isHtmlContentType(contentType);
+}

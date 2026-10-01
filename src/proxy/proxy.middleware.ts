@@ -4,6 +4,7 @@ import { Request, Response } from 'express';
 import * as http from 'http';
 import * as https from 'https';
 import {
+  isHtmlErrorResponse,
   isRewritableContentType,
   resolveTargetUrl,
   rewriteHostInHeaderValue,
@@ -79,13 +80,21 @@ export class ProxyMiddleware implements NestMiddleware {
         timeout: 120_000,
       },
       (proxyRes) => {
-        res.statusCode = proxyRes.statusCode ?? 502;
+        const statusCode = proxyRes.statusCode ?? 502;
+        const contentType = headerToString(proxyRes.headers['content-type']);
+        const stripHtmlError = isHtmlErrorResponse(statusCode, contentType);
+
+        res.statusCode = statusCode;
 
         for (const [key, value] of Object.entries(proxyRes.headers)) {
+          const headerName = key.toLowerCase();
           if (
             value === undefined ||
-            HOP_BY_HOP_HEADERS.has(key.toLowerCase()) ||
-            key.toLowerCase() === 'content-length'
+            HOP_BY_HOP_HEADERS.has(headerName) ||
+            headerName === 'content-length' ||
+            (stripHtmlError &&
+              (headerName === 'content-type' ||
+                headerName === 'content-encoding'))
           ) {
             continue;
           }
@@ -99,7 +108,19 @@ export class ProxyMiddleware implements NestMiddleware {
           }
         }
 
-        const contentType = headerToString(proxyRes.headers['content-type']);
+        if (stripHtmlError) {
+          res.setHeader('content-length', 0);
+          proxyRes.resume();
+          proxyRes.on('end', () => res.end());
+          proxyRes.on('error', (err) => {
+            this.logger.error(`Upstream response error: ${err.message}`);
+            if (!res.writableEnded) {
+              res.end();
+            }
+          });
+          return;
+        }
+
         const shouldRewriteBody =
           Boolean(incomingHost) && isRewritableContentType(contentType);
 
