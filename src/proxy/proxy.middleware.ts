@@ -4,7 +4,7 @@ import { Request, Response } from 'express';
 import * as http from 'http';
 import * as https from 'https';
 import {
-  isHtmlErrorResponse,
+  isHtmlContentType,
   isRewritableContentType,
   resolveTargetUrl,
   rewriteHostInHeaderValue,
@@ -82,7 +82,7 @@ export class ProxyMiddleware implements NestMiddleware {
       (proxyRes) => {
         const statusCode = proxyRes.statusCode ?? 502;
         const contentType = headerToString(proxyRes.headers['content-type']);
-        const stripHtmlError = isHtmlErrorResponse(statusCode, contentType);
+        const stripHtml = isHtmlContentType(contentType);
 
         res.statusCode = statusCode;
 
@@ -92,7 +92,7 @@ export class ProxyMiddleware implements NestMiddleware {
             value === undefined ||
             HOP_BY_HOP_HEADERS.has(headerName) ||
             headerName === 'content-length' ||
-            (stripHtmlError &&
+            (stripHtml &&
               (headerName === 'content-type' ||
                 headerName === 'content-encoding'))
           ) {
@@ -108,7 +108,7 @@ export class ProxyMiddleware implements NestMiddleware {
           }
         }
 
-        if (stripHtmlError) {
+        if (stripHtml) {
           res.setHeader('content-length', 0);
           proxyRes.resume();
           proxyRes.on('end', () => res.end());

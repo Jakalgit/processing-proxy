@@ -77,10 +77,3 @@ export function isHtmlContentType(contentType: string | undefined): boolean {
   const type = contentType.split(';')[0].trim().toLowerCase();
   return type === 'text/html' || type === 'application/xhtml+xml';
 }
-
-export function isHtmlErrorResponse(
-  statusCode: number,
-  contentType: string | undefined,
-): boolean {
-  return statusCode >= 400 && isHtmlContentType(contentType);
-}

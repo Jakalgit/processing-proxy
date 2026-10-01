@@ -1,5 +1,5 @@
 import {
-  isHtmlErrorResponse,
+  isHtmlContentType,
   isRewritableContentType,
   resolveTargetUrl,
   rewriteHostInHeaderValue,
@@ -78,15 +78,14 @@ describe('isRewritableContentType', () => {
   });
 });
 
-describe('isHtmlErrorResponse', () => {
-  it('detects html error pages', () => {
-    expect(isHtmlErrorResponse(400, 'text/html; charset=utf-8')).toBe(true);
-    expect(isHtmlErrorResponse(502, 'application/xhtml+xml')).toBe(true);
+describe('isHtmlContentType', () => {
+  it('detects html responses', () => {
+    expect(isHtmlContentType('text/html; charset=utf-8')).toBe(true);
+    expect(isHtmlContentType('application/xhtml+xml')).toBe(true);
   });
 
-  it('keeps successful html and non-html errors', () => {
-    expect(isHtmlErrorResponse(200, 'text/html')).toBe(false);
-    expect(isHtmlErrorResponse(400, 'application/json')).toBe(false);
-    expect(isHtmlErrorResponse(500, undefined)).toBe(false);
+  it('ignores non-html responses', () => {
+    expect(isHtmlContentType('application/json')).toBe(false);
+    expect(isHtmlContentType(undefined)).toBe(false);
   });
 });

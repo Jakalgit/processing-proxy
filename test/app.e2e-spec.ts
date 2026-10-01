@@ -3,7 +3,7 @@ import { INestApplication } from '@nestjs/common';
 import * as request from 'supertest';
 import * as http from 'http';
 import { AddressInfo } from 'net';
-import { AppModule } from "../src/app.module";
+import { AppModule } from '../src/app.module';
 
 describe('Proxy (e2e)', () => {
   let app: INestApplication;
@@ -36,17 +36,18 @@ describe('Proxy (e2e)', () => {
           body: Buffer.concat(chunks),
         };
 
+        const isHtml = req.url?.startsWith('/html');
         const isHtmlError = req.url?.startsWith('/html-error');
         const isError = req.url?.startsWith('/error');
         const shouldLeakProxyHost = req.url?.includes('leak=1');
 
-        if (isHtmlError) {
-          res.writeHead(502, {
+        if (isHtml) {
+          res.writeHead(isHtmlError ? 502 : 200, {
             'Content-Type': 'text/html; charset=utf-8',
             'X-Upstream-Header': 'keep-me',
           });
           res.end(
-            '<html><body><h1>Bad Gateway</h1><p>upstream exploded</p></body></html>',
+            '<html><body><h1>Upstream page</h1><p>should be blocked</p></body></html>',
           );
           return;
         }
@@ -122,14 +123,22 @@ describe('Proxy (e2e)', () => {
       .expect('X-Upstream-Header', 'keep-me');
   });
 
-  it('strips html error pages and keeps the status code', async () => {
-    const response = await request(app.getHttpServer())
+  it('strips any html response and keeps the status code', async () => {
+    const errorPage = await request(app.getHttpServer())
       .get('/html-error')
       .expect(502)
       .expect('X-Upstream-Header', 'keep-me');
 
-    expect(response.text).toBe('');
-    expect(response.headers['content-type']).toBeUndefined();
+    expect(errorPage.text).toBe('');
+    expect(errorPage.headers['content-type']).toBeUndefined();
+
+    const okPage = await request(app.getHttpServer())
+      .get('/html')
+      .expect(200)
+      .expect('X-Upstream-Header', 'keep-me');
+
+    expect(okPage.text).toBe('');
+    expect(okPage.headers['content-type']).toBeUndefined();
   });
 
   it('does not leak the proxy host to upstream or back to the caller', async () => {
